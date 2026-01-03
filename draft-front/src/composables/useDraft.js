@@ -43,7 +43,12 @@ export function useDraft({ formatConfigRef }) {
 
   const isOurTurn = computed(() => {
     const act = currentAction.value;
+
+    console.log(!!act && act.side === ourSide.value)
+
     return !!act && act.side === ourSide.value;
+
+
   });
 
   const takenChampionIds = computed(() => {

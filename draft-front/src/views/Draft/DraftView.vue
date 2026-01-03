@@ -65,9 +65,9 @@ const statusText = computed(() => {
   if (!act) return "Draft complete.";
   const t = s.targetSlot;
   const slotTxt = t ? `${t.side} ${t.type} #${t.idx + 1}` : "—";
-  return `Step ${s.cursor + 1}/${s.total} → ${act.side} ${act.type} | target: ${slotTxt} | ${
-    s.isOurTurn ? "OUR TURN" : "opponent"
-  }`;
+  return `Step ${s.cursor + 1}/${s.total} → ${act.side} ${
+    act.type
+  } | target: ${slotTxt} | ${s.isOurTurn ? "OUR TURN" : "opponent"}`;
 });
 
 const recos = ref([]);
@@ -85,9 +85,12 @@ async function refreshRecommendations() {
       draftState: draftCtl.draft.value,
       target,
     };
-    console.log("payload", payload)
     const data = await fetchRecommendations(payload);
-    recos.value = data?.recommendations ?? [];
+    const championById = new Map(champions.value.map((c) => [c.id, c]));
+    recos.value = (data?.recommendations ?? []).map((r) => {
+      const champ = championById.get(r.championId);
+      return champ ? { ...r, name: champ.name, img: champ.img } : r;
+    });
   } catch {
     recos.value = [];
   } finally {
@@ -97,9 +100,15 @@ async function refreshRecommendations() {
 
 async function pickChampionFromList(champ) {
   const ok = draftCtl.applyChampion(champ);
-  console.log("draftPhases.ban", draftCtl.isOurTurn.value, draftCtl.currentAction.value.type, draftPhases.ban)
-  if(draftCtl.currentAction.value.type !== draftPhases.ban){
-    if(draftCtl.isOurTurn.value && !draftCtl.isFirstPick.value){ // no recommendation for the first pick for the moment
+  console.log(
+    "draftPhases.ban",
+    draftCtl.isOurTurn.value,
+    draftCtl.currentAction.value.type,
+    draftPhases.ban
+  );
+  if (draftCtl.currentAction.value.type !== draftPhases.ban) {
+    if (draftCtl.isOurTurn.value && !draftCtl.isFirstPick.value) {
+      // no recommendation for the first pick for the moment
       await refreshRecommendations();
     }
     draftCtl.isFirstPick.value = false;
@@ -109,18 +118,21 @@ async function pickChampionFromList(champ) {
 onMounted(async () => {
   await loadFormatKeys();
 
-  const defaultKey =
-    availableFormatKeys.value.includes("flex")
-      ? "flex"
-      : availableFormatKeys.value[0];
+  const defaultKey = availableFormatKeys.value.includes("flex")
+    ? "flex"
+    : availableFormatKeys.value[0];
 
   await selectFormat(defaultKey);
 
-  // init side
   draftCtl.setOurSide(ourSide.value);
 
   await loadChampions();
 });
+
+function reset(){
+  recos.value = [];
+  draftCtl.resetDraft()
+}
 </script>
 
 <template>
@@ -134,11 +146,14 @@ onMounted(async () => {
         @update:selectedElement="onChangeFormat"
         @update:ourSide="onChangeSide"
         @undo="draftCtl.undo"
-        @reset="draftCtl.resetDraft"
+        @reset="reset"
       />
     </div>
 
-    <div v-if="error" class="mb-4 rounded-lg border border-red-700 bg-red-950/40 p-3 text-sm">
+    <div
+      v-if="error"
+      class="mb-4 rounded-lg border border-red-700 bg-red-950/40 p-3 text-sm"
+    >
       {{ error }}
     </div>
 
@@ -150,19 +165,27 @@ onMounted(async () => {
         <div class="grid grid-cols-5 gap-2">
           <BanMiniCard
             v-for="(b, i) in draftCtl.draft.value.bans.blue"
-            :key="'bb'+i"
+            :key="'bb' + i"
             :champion="b"
-            :active="draftCtl.targetSlot?.type===draftPhases.ban && draftCtl.targetSlot?.side==='blue' && draftCtl.targetSlot?.idx===i"
+            :active="
+              draftCtl.targetSlot?.type === draftPhases.ban &&
+              draftCtl.targetSlot?.side === 'blue' &&
+              draftCtl.targetSlot?.idx === i
+            "
           />
         </div>
 
         <div class="space-y-2">
           <PickSlotCard
             v-for="(p, i) in draftCtl.draft.value.picks.blue"
-            :key="'bp'+i"
+            :key="'bp' + i"
             :label="`Pick ${i + 1}`"
             :champion="p"
-            :active="draftCtl.targetSlot?.type===draftPhases.pick && draftCtl.targetSlot?.side==='blue' && draftCtl.targetSlot?.idx===i"
+            :active="
+              draftCtl.targetSlot?.type === draftPhases.pick &&
+              draftCtl.targetSlot?.side === 'blue' &&
+              draftCtl.targetSlot?.idx === i
+            "
           />
         </div>
       </div>
@@ -172,7 +195,10 @@ onMounted(async () => {
         <div class="flex items-center justify-between">
           <h2 class="font-semibold">Champions</h2>
           <div class="text-xs text-slate-400">
-            Available: <span class="text-slate-200 font-semibold">{{ availableChampions.length }}</span>
+            Available:
+            <span class="text-slate-200 font-semibold">{{
+              availableChampions.length
+            }}</span>
             <span v-if="loadingChampions" class="ml-2">Loading…</span>
           </div>
         </div>
@@ -181,7 +207,7 @@ onMounted(async () => {
           :options="availableChampions"
           option-key="id"
           :multiple="false"
-           max-height="45vh"
+          max-height="45vh"
           :searchable="true"
           placeholder="Filter champions…"
           @change="pickChampionFromList"
@@ -191,11 +217,11 @@ onMounted(async () => {
               <div class="flex items-center">
                 <span class="text-sm font-medium">{{ option.name }}</span>
                 <img
-                    v-if="option.img"
-                    :src="option.img"
-                    alt=""
-                    class="h-4 w-4 ml-2 rounded-sm opacity-70"
-                  />
+                  v-if="option.img"
+                  :src="option.img"
+                  alt=""
+                  class="h-4 w-4 ml-2 rounded-sm opacity-70"
+                />
               </div>
               <div class="text-xs text-slate-500">#{{ option.id }}</div>
             </div>
@@ -207,27 +233,46 @@ onMounted(async () => {
             <div class="font-semibold">Recommendations</div>
             <div class="text-xs text-slate-400">
               <span v-if="loadingRecos">Loading…</span>
-              <span v-else>{{ draftCtl.isOurTurn ? "our turn" : "waiting" }}</span>
+              <span v-else>{{
+                draftCtl.isOurTurn.value ? "our turn" : "waiting"
+              }}</span>
             </div>
           </div>
 
-          <div v-if="!draftCtl.isOurTurn" class="mt-3 text-sm text-slate-400">
-            Pas notre tour → pas de call recommandations.
+          <div v-if="draftCtl.isOurTurn.value === false" class="mt-3 text-sm text-slate-400">
+            Pas notre tour : pas de call recommandations.
           </div>
 
-          <ul v-else class="mt-3 space-y-2">
-            <li v-if="recos.length === 0" class="text-sm text-slate-400">
-              (backend recos pas encore branché)
-            </li>
-            <li
-              v-for="r in recos"
-              :key="r.championId"
-              class="flex items-center justify-between rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
-            >
-              <span class="text-sm">#{{ r.championId }}</span>
-              <span class="text-sm font-semibold">{{ r.score }}</span>
-            </li>
-          </ul>
+          <!-- todo:  -->
+          <div v-else class="mt-3 space-y-2">
+            <div v-if="recos.length === 0" class="text-sm text-slate-400">
+              -
+            </div>
+
+            <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div
+                v-for="r in recos"
+                :key="r.championId"
+                class="rounded-lg bg-slate-900/60 border border-slate-700 p-3 flex flex-col gap-2"
+              >
+                <!-- Nom -->
+                <span class="text-sm font-medium text-slate-100 truncate">
+                  {{ r.name }}
+                </span>
+
+                <img
+                  v-if="r.img"
+                  :src="r.img"
+                  alt=""
+                  class="h-6 w-6 rounded-sm opacity-80"
+                />
+
+                <span class="text-sm font-semibold text-emerald-400">
+                  {{ r.score }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -238,19 +283,27 @@ onMounted(async () => {
         <div class="grid grid-cols-5 gap-2">
           <BanMiniCard
             v-for="(b, i) in draftCtl.draft.value.bans.red"
-            :key="'rb'+i"
+            :key="'rb' + i"
             :champion="b"
-            :active="draftCtl.targetSlot?.type===draftPhases.ban && draftCtl.targetSlot?.side==='red' && draftCtl.targetSlot?.idx===i"
+            :active="
+              draftCtl.targetSlot?.type === draftPhases.ban &&
+              draftCtl.targetSlot?.side === 'red' &&
+              draftCtl.targetSlot?.idx === i
+            "
           />
         </div>
 
         <div class="space-y-2">
           <PickSlotCard
             v-for="(p, i) in draftCtl.draft.value.picks.red"
-            :key="'rp'+i"
+            :key="'rp' + i"
             :label="`Pick ${i + 1}`"
             :champion="p"
-            :active="draftCtl.targetSlot?.type===draftPhases.pick && draftCtl.targetSlot?.side==='red' && draftCtl.targetSlot?.idx===i"
+            :active="
+              draftCtl.targetSlot?.type === draftPhases.pick &&
+              draftCtl.targetSlot?.side === 'red' &&
+              draftCtl.targetSlot?.idx === i
+            "
           />
         </div>
       </div>
