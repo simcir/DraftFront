@@ -18,6 +18,14 @@
             Draft
           </router-link>
 
+          <router-link
+            to="/profile"
+            class="px-3 py-2 rounded-lg hover:bg-slate-800"
+            active-class="bg-slate-800 text-white"
+          >
+            Profile
+          </router-link>
+
           <!-- tu pourras décommenter quand tu auras ces routes -->
           <!--
           <router-link
