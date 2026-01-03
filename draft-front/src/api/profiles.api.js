@@ -10,17 +10,17 @@ export const profilesApi = {
   listProfiles: () => apiJson("/profiles"),
   listEntries: ({ profileName, role }) =>
     apiJson(`/profiles/entries?profileName=${encodeURIComponent(profileName)}&role=${role}`),
-  createEntry: (payload) =>
+  createEntry: ({ profileName, role, entry }) =>
     apiJson("/profiles/entries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ profileName, role, entry }),
     }),
-  updateEntry: (id, payload) =>
+  updateEntry: (id, { profileName, role, entry }) =>
     apiJson(`/profiles/entries/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ profileName, role, entry }),
     }),
   deleteEntry: (id) =>
     apiJson(`/profiles/entries/${id}`, { method: "DELETE" }),
